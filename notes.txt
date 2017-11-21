@@ -1,0 +1,116 @@
+DONE
+drmfslt do re mi fa sol la si/ti
+DRMFSLT
+
+DONE
+(dms) play chord, advances by longest note duration
+^(dms) play next chord without changing time
+
+^ play next note/chord without changing time
+
+DONE
+~ silence/ go foward in time
+& go back in time
+
+DONE
+| sync time with time signature
+? set bar time with current time
+
+DONE
+:4/4: set time signature
+
+DONE
+{epiano} changes instrument
+
+DONE
+@ go back to beginning
+15@ go To absolute value of 15 beats
+
+DONE
+; go back to beginning
+15; go to absolute value of 15 bars (1 bar = numerator beats)
+
+DONE
+\ blahblah \ comment
+\ ignore until end of line or another slash
+
+DONE
+G, g set treble clef
+B, b set bass clef
+
+DONE
++ - up, down clef
+
+DONE
+' , temporary switch octave up or down until next note
+,,, temporary switch up/down multiple octave
+
+DONE
+$ # n, N temporary switch accidental for next note
+
+DONE
+[#drm] sharp key signature
+[$drm] flat key signature
+[drm] natural key signature
+
+DONE
+! temporary switch Staccato for next note
+
+DONE
+1 2 4 8 1/2 /2 /4 /8 3/4  set note duration, relative to beat time
+
+0.5 set note duration?? conflict with period .
+
+DONE
+quick set note duration
+16u, U quadruple whole note
+8 v, V double whole note
+4 w, W whole note
+2 h, H half note
+1 q, Q quarter note
+1/2 e, E eighth note
+1/4 x, X sixteenth note
+1/8 y, Y thirty second note
+1/16 z, Z sixty fourth note
+
+
+DONE
+. period after note duration, increases time by 1/2, reset after changing note duration
+
+
+DONE
+< crescendo, increase loudness
+> diminuendo, decrease loudness
+% reset loudness
+
+a=dmsmd(dms) replace all occurences of a with this string
+
+Pre-track info:
+drmex //drm extended file
+BPM as integer
+_4/4_ default time signature
+{epiano} default instrument
+a=(dms)
+dmsdmsdmsdms
+dmsrfldms
+
+characters left acijkmop
+
+drm [bpm] [_4/4_] {epiano} data
+data
+data
+
+if no distinctive header, split by spaces and parse
+
+
+Start with BPM, then time signature, then instrument name, then data
+
+for the single string version, use everything as is
+for the double string version:
+
+upper string is for the notes,
+lower string is for the note duration.
+eg:
+
+drmfslt+drmfslt+drmfslt'd
+QQQQQQQEEEEEXQQQQQQQQQQQ
