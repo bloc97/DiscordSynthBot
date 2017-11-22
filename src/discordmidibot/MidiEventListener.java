@@ -5,54 +5,31 @@
  */
 package discordmidibot;
 
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sun.media.sound.AudioSynthesizer;
 import com.sun.media.sound.SoftSynthesizer;
-import helpers.Levenshtein;
-import helpers.ParserUtils;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
-import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import javax.sound.midi.Instrument;
-import javax.sound.midi.MidiChannel;
-import javax.sound.midi.MidiSystem;
 import javax.sound.midi.MidiUnavailableException;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
-import net.dv8tion.jda.core.audio.AudioSendHandler;
 import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.VoiceChannel;
 import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import numberutils.IntegerUtils;
 import org.apache.commons.lang3.StringUtils;
-import parse.CommandParser;
-import parse.Delimiter;
-import parse.Nested;
-import parse.Separator;
-import parse.converter.ConverterUtils;
 
 
 /**
@@ -281,171 +258,6 @@ public class MidiEventListener extends ListenerAdapter {
         } catch (Exception ex) {
             
         }
-        
-        
-        
-        /**
-        List<Message.Attachment> attachments = event.getMessage().getAttachments();
-        
-        //System.out.println(attachments.size());
-        
-        Queue<String> commands = new LinkedList<>(CommandParser.separatorParse(rawString, " "));
-        
-        if (commands.poll().equalsIgnoreCase("midi") || !attachments.isEmpty()) {
-            
-            Guild guild = event.getGuild();
-            MidiSendHandler handler = getGuildHandler(guild);
-            MidiChannel channel = handler.getSynthesizer().getChannels()[0];
-            
-            String secondCommand = commands.poll();
-            
-            if (!attachments.isEmpty()) {
-                secondCommand = "blah";
-            }
-            
-            switch (secondCommand.toLowerCase()) {
-                
-                case "start" :
-                    
-                    List<VoiceChannel> voiceChannels = event.getGuild().getVoiceChannelsByName("compo", true);
-                    
-                    if (!voiceChannels.isEmpty()) {
-                        VoiceChannel voiceChannel = voiceChannels.get(0);
-                        guild.getAudioManager().openAudioConnection(voiceChannel);
-                    }
-                    
-                    
-                    break;
-                    
-                case "test" :
-                    
-                    Queue<MidiChannelEvent> queue2 = new LinkedList<>();
-                    
-                    
-                    for (int i=0; i<12; i++) {
-                        queue2.add(new MidiChannelEvent((i * 1000), 0, 60, 50, true));
-                        queue2.add(new MidiChannelEvent(((i + 1) * 1000), 0, 60, 50, false));
-                    }
-                    
-                    handler.play(new ScorePlayer(handler.getSynthesizer(), queue2));
-        
-                    break;
-                    
-                    
-                case "stop" :
-                    
-                    handler.stop();
-                    
-                default :
-                    
-                    if (!attachments.isEmpty()) {
-                        File file = new File("tempMidi.smid");
-                        attachments.get(0).download(file);
-                        try {
-                            List<String> strList = Files.readAllLines(FileSystems.getDefault().getPath("tempMidi.smid"));
-                            String rectString = ParserUtils.join(strList, '\n');
-                            int nextSpace = rectString.indexOf(" ");
-                            if (nextSpace != -1 && nextSpace < rectString.length()) {
-                                secondCommand = rectString.substring(0, rectString.indexOf(" "));
-                            }
-                            rawString = "midi " + rectString;
-                            //System.out.println(rawString);
-                        } catch (FileNotFoundException ex) {
-                            rawString = "";
-                        } catch (IOException ex) {
-                            rawString = "";
-                        }
-                        file.delete();
-                    }
-                    
-                    
-                    if (rawString.length() > 5) {
-                    
-                        Queue<MidiChannelEvent> queue = new PriorityQueue<>(new Comparator<MidiChannelEvent>() {
-
-                            @Override
-                            public int compare(MidiChannelEvent o1, MidiChannelEvent o2) {
-                                return (int)(o1.getTime() - o2.getTime());
-                            }
-
-                        });
-                        
-                        int sub = 5;
-                        int quarTimeStep = 500;
-                        
-                        String bpm = secondCommand;
-                        if (ConverterUtils.isNumber(bpm)) {
-                            quarTimeStep = tempoMs(ConverterUtils.parseNumber(bpm).intValue());
-                            sub += bpm.length() + 1;
-                        }
-                        
-                        String channelsString = rawString.substring(Math.min(sub, rawString.length() - 1));
-
-                        //boolean useCDEF = ParserUtils.containsCharacter(rawString, new char[] {'a','A','b','B','c','C','e','E','g','G'});
-                        
-                        String[] channelStringArray = channelsString.split("\n");
-                        String[] channelInstrumentString = new String[channelStringArray.length];
-                        
-                        for (int i=0; i<channelStringArray.length; i++) {
-                            if (!channelStringArray[i].isEmpty()) {
-                                if (channelStringArray[i].charAt(0) == '{') {
-                                    
-                                    int endIndex = channelStringArray[i].indexOf('}');
-                                    
-                                    if (endIndex > 0) {
-                                        channelInstrumentString[i] = channelStringArray[i].substring(1, endIndex);
-                                        channelStringArray[i] = channelStringArray[i].substring(Math.min(endIndex + 1, channelStringArray[i].length() - 1));
-                                    }
-                                    
-                                } else {
-                                    channelInstrumentString[i] = "";
-                                }
-                            }
-                        }
-                        
-                        for (int i=0; i<channelInstrumentString.length; i++) {
-                            
-                            if (channelInstrumentString.length != 0) {
-                                
-                                Instrument[] instruments = handler.getSynthesizer().getLoadedInstruments();
-                                
-                                
-                                Instrument closestInstrument = instruments[0];
-                                int closestScore = Integer.MAX_VALUE;
-
-                                for (Instrument instrument : instruments) {
-                                    int thisScore = Levenshtein.subwordDistance(instrument.getName(), channelInstrumentString[i]);
-                                    if (closestScore > thisScore) {
-                                        closestScore = thisScore;
-                                        closestInstrument = instrument;
-                                    }
-                                }
-                                
-                                handler.getSynthesizer().getChannels()[i].programChange(closestInstrument.getPatch().getBank(), closestInstrument.getPatch().getProgram());
-                                
-                            } else {
-                                handler.getSynthesizer().getChannels()[i].programChange(0, 0);
-                            }
-                            
-                        }
-                        
-                        for (int i=0; i<channelStringArray.length; i++) {
-                            queueChannel(queue, channelStringArray[i], i, quarTimeStep, 4, 4);
-                        }
-                        
-                        handler.play(queue);
-
-                        break;
-                }
-                
-            }
-            
-            
-        }
-        
-        if (!attachments.isEmpty()) {
-            event.getMessage().delete().submit();
-        }*/
         
     }
     
