@@ -83,7 +83,7 @@ public class ScorePlayer implements Runnable {
         int closestScore = Integer.MAX_VALUE;
         if (!instrumentName.isEmpty()) {
             for (Instrument instrument : instruments) {
-                int thisScore = Levenshtein.subwordDistance(instrument.getName(), instrumentName);
+                int thisScore = Levenshtein.substringDistance(instrument.getName(), instrumentName);
                 if (closestScore > thisScore) {
                     closestScore = thisScore;
                     closestInstrument = instrument;
@@ -102,7 +102,7 @@ public class ScorePlayer implements Runnable {
         int closestScore = Integer.MAX_VALUE;
         if (!instrumentName.isEmpty()) {
             for (Instrument instrument : instruments) {
-                int thisScore = Levenshtein.subwordDistance(instrument.getName(), instrumentName);
+                int thisScore = Levenshtein.substringDistance(instrument.getName(), instrumentName);
                 if (closestScore > thisScore) {
                     closestScore = thisScore;
                     closestInstrument = instrument;

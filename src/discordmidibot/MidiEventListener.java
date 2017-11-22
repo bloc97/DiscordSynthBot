@@ -178,7 +178,6 @@ public class MidiEventListener extends ListenerAdapter {
 
             } else if (rawString.startsWith("drmex") || rawString.startsWith("!drmex")) {
                 
-                
                 List<VoiceChannel> voiceChannels = event.getGuild().getVoiceChannelsByName("compo", true);
 
                 if (!voiceChannels.isEmpty() && !guild.getAudioManager().isConnected()) {
@@ -262,14 +261,14 @@ public class MidiEventListener extends ListenerAdapter {
                 });
 
                 for (int i=dataStartIndex; i<stringLines.length; i++) {
-                    System.out.println(stringLines[i]);
+                    //System.out.println(stringLines[i]);
                     for (int n=0; n<defaultAssignmentDepth; n++) {
                         if (stringLines[i].length() * biggestAssignmentRatio > 20000) {
                             break;
                         }
                         stringLines[i] = replaceEach(stringLines[i], assignmentMap);
                     }
-                    System.out.println(stringLines[i]);
+                    //System.out.println(stringLines[i]);
                     queueChannel(queue, stringLines[i], i, tempoMs(defaultBPM), defaultNumerator, defaultDenominator);
                 }
 
