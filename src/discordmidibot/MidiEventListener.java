@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +32,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.sound.midi.Instrument;
 import javax.sound.midi.MidiChannel;
 import javax.sound.midi.MidiSystem;
@@ -43,6 +47,7 @@ import net.dv8tion.jda.core.entities.VoiceChannel;
 import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import numberutils.IntegerUtils;
+import org.apache.commons.lang3.StringUtils;
 import parse.CommandParser;
 import parse.Delimiter;
 import parse.Nested;
@@ -62,11 +67,225 @@ public class MidiEventListener extends ListenerAdapter {
     public static final List<Character> DURATIONCHARLIST = Arrays.asList(new Character[] {'z', 'Z', 'y', 'Y', 'x', 'X', 'e', 'E', 'q', 'Q', 'h', 'H', 'w', 'W', 'v', 'V', 'u', 'U'});
     public static final List<Character> VALIDFRACTIONCHARLIST = Arrays.asList(new Character[] {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '/'});
     
+    public static boolean isBPM(String string) {
+        try {
+            int bpm = Integer.parseInt(string);
+            return bpm != 0;
+        } catch (NumberFormatException ex) {
+            return false;
+        }
+    }
+    
+    public static boolean isTimeSignature(String string) {
+        return (string = string.trim()).startsWith(":") && string.endsWith(":") && string.contains("/");
+    }
+    
+    public static boolean isInstrument(String string) {
+        return (string = string.trim()).startsWith("{") && string.endsWith("}");
+    }
+    
+    public static boolean isAssignment(String string) {
+        return string.contains("=");
+    }
+    public String replaceEach(String s, Map<String, String> replacements)
+    {
+        int size = replacements.size();
+        String[] keys = replacements.keySet().toArray(new String[size]);
+        String[] values = replacements.values().toArray(new String[size]);
+        return StringUtils.replaceEach(s, keys, values);
+    }
+
     @Override
     public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
         
         String rawString = event.getMessage().getRawContent();
+        Guild guild = event.getGuild();
+            
+        try {
+            if (rawString.startsWith("!drm")) {
+
+                List<VoiceChannel> voiceChannels = event.getGuild().getVoiceChannelsByName("compo", true);
+
+                if (!voiceChannels.isEmpty() && !guild.getAudioManager().isConnected()) {
+                    VoiceChannel voiceChannel = voiceChannels.get(0);
+                    guild.getAudioManager().openAudioConnection(voiceChannel);
+                }
+
+                MidiSendHandler handler = getGuildHandler(guild);
+                handler.stop();
+
+                String[] stringLines = rawString.split("\n");
+
+                String[] firstLineArgs = stringLines[0].split(" ");
+
+                boolean foundBPM, foundTime, foundInstrument;
+                foundBPM = false;
+                foundTime = false;
+                foundInstrument = false;
+
+                int defaultBPM = 120;
+                float defaultNumerator = 4f;
+                float defaultDenominator = 4f;
+
+                int subStringIndex = firstLineArgs[0].length() + 1;
+
+                ScorePlayer.resetDefaultInstruments(stringLines.length, handler.getSynthesizer());
+
+                for (int i=1; i<firstLineArgs.length && i<4; i++) { //read the first three properties after the initial command
+                    String rawPropertyString = firstLineArgs[i];
+                    String potentialProperty = rawPropertyString.trim();
+
+                    if (!foundBPM && isBPM(potentialProperty)) {
+                        defaultBPM = Integer.parseInt(potentialProperty);
+                        foundBPM = true;
+                        subStringIndex += rawPropertyString.length() + 1;
+
+                    } else if (!foundTime && isTimeSignature(potentialProperty)) {
+                        Map.Entry<Float, Float> timeFraction = parseTimeSignature(potentialProperty.substring(1, potentialProperty.length() - 1));
+                        defaultNumerator = timeFraction.getKey();
+                        defaultDenominator = timeFraction.getValue();
+                        foundTime = true;
+                        subStringIndex += rawPropertyString.length() + 1;
+
+                    } else if (!foundInstrument && isInstrument(potentialProperty)) {
+                        String instrument = potentialProperty.substring(1, potentialProperty.length() - 1);
+                        ScorePlayer.changeDefaultInstruments(stringLines.length, instrument, handler.getSynthesizer());
+                        foundInstrument = true;
+                        subStringIndex += rawPropertyString.length() + 1;
+
+                    } else {
+                        //This is not a property, which means we are at the end, start reading data
+                        break;
+                    }
+                }
+
+                subStringIndex = Math.min(subStringIndex, stringLines[0].length());
+                stringLines[0] = stringLines[0].substring(subStringIndex);
+
+                Queue<MidiChannelEvent> queue = new PriorityQueue<>(new Comparator<MidiChannelEvent>() {
+                    @Override
+                    public int compare(MidiChannelEvent o1, MidiChannelEvent o2) {
+                        return (int)(o1.getTime() - o2.getTime());
+                    }
+                });
+
+                for (int i=0; i<stringLines.length; i++) {
+                    queueChannel(queue, stringLines[i], i, tempoMs(defaultBPM), defaultNumerator, defaultDenominator);
+                }
+
+                handler.play(queue);
+
+
+            } else if (rawString.startsWith("drmex") || rawString.startsWith("!drmex")) {
+                
+                
+                List<VoiceChannel> voiceChannels = event.getGuild().getVoiceChannelsByName("compo", true);
+
+                if (!voiceChannels.isEmpty() && !guild.getAudioManager().isConnected()) {
+                    VoiceChannel voiceChannel = voiceChannels.get(0);
+                    guild.getAudioManager().openAudioConnection(voiceChannel);
+                }
+
+                MidiSendHandler handler = getGuildHandler(guild);
+                handler.stop();
+
+                String[] stringLines = rawString.split("\n");
+
+                boolean foundBPM, foundTime, foundInstrument;
+                foundBPM = false;
+                foundTime = false;
+                foundInstrument = false;
+
+                int defaultBPM = 120;
+                float defaultNumerator = 4f;
+                float defaultDenominator = 4f;
+                int defaultAssignmentDepth = 1;
+                float biggestAssignmentRatio = 1;
+                
+                Map<String, String> assignmentMap = new LinkedHashMap<>();
+
+                int dataStartIndex = 1;
+
+                ScorePlayer.resetDefaultInstruments(stringLines.length, handler.getSynthesizer());
+
+                for (int i=1; i<stringLines.length; i++) { //read the first three properties after the initial command
+                    String rawPropertyString = stringLines[i];
+                    String potentialProperty = rawPropertyString.trim();
+
+                    if (!foundBPM && isBPM(potentialProperty)) {
+                        defaultBPM = Integer.parseInt(potentialProperty);
+                        foundBPM = true;
+                        dataStartIndex += 1;
+
+                    } else if (!foundTime && isTimeSignature(potentialProperty)) {
+                        Map.Entry<Float, Float> timeFraction = parseTimeSignature(potentialProperty.substring(1, potentialProperty.length() - 1));
+                        defaultNumerator = timeFraction.getKey();
+                        defaultDenominator = timeFraction.getValue();
+                        foundTime = true;
+                        dataStartIndex += 1;
+
+                    } else if (!foundInstrument && isInstrument(potentialProperty)) {
+                        String instrument = potentialProperty.substring(1, potentialProperty.length() - 1);
+                        ScorePlayer.changeDefaultInstruments(stringLines.length, instrument, handler.getSynthesizer());
+                        foundInstrument = true;
+                        dataStartIndex += 1;
+
+                    } else if (isAssignment(potentialProperty)) {
+                        try {
+                            String lefthand = potentialProperty.substring(0, potentialProperty.indexOf('=')).trim();
+                            String righthand = potentialProperty.substring(potentialProperty.indexOf('=') + 1, potentialProperty.length()).trim();
+                            
+                            float assignmentRatio = (float)righthand.length() / lefthand.length();
+                            
+                            if (lefthand.toLowerCase().equals("k")) {
+                                defaultAssignmentDepth = Integer.parseInt(righthand);
+                            } else {
+                                assignmentMap.put(lefthand, righthand);
+                                if (biggestAssignmentRatio < assignmentRatio) {
+                                    biggestAssignmentRatio = assignmentRatio;
+                                }
+                            }
+                        } catch (Exception ex) {
+                        }
+                        dataStartIndex += 1;
+                    } else {
+                        //This is not a property, which means we are at the end, start reading data
+                        break;
+                    }
+                }
+
+                Queue<MidiChannelEvent> queue = new PriorityQueue<>(new Comparator<MidiChannelEvent>() {
+                    @Override
+                    public int compare(MidiChannelEvent o1, MidiChannelEvent o2) {
+                        return (int)(o1.getTime() - o2.getTime());
+                    }
+                });
+
+                for (int i=dataStartIndex; i<stringLines.length; i++) {
+                    System.out.println(stringLines[i]);
+                    for (int n=0; n<defaultAssignmentDepth; n++) {
+                        if (stringLines[i].length() * biggestAssignmentRatio > 20000) {
+                            break;
+                        }
+                        stringLines[i] = replaceEach(stringLines[i], assignmentMap);
+                    }
+                    System.out.println(stringLines[i]);
+                    queueChannel(queue, stringLines[i], i, tempoMs(defaultBPM), defaultNumerator, defaultDenominator);
+                }
+
+                handler.play(queue);
+
+
+            } else if (rawString.startsWith("!synth")) { //Displays help
+
+            }
+        } catch (Exception ex) {
+            
+        }
         
+        
+        
+        /**
         List<Message.Attachment> attachments = event.getMessage().getAttachments();
         
         //System.out.println(attachments.size());
@@ -215,7 +434,7 @@ public class MidiEventListener extends ListenerAdapter {
                             queueChannel(queue, channelStringArray[i], i, quarTimeStep, 4, 4);
                         }
                         
-                        handler.play(new ScorePlayer(handler.getSynthesizer(), queue));
+                        handler.play(queue);
 
                         break;
                 }
@@ -227,7 +446,7 @@ public class MidiEventListener extends ListenerAdapter {
         
         if (!attachments.isEmpty()) {
             event.getMessage().delete().submit();
-        }
+        }*/
         
     }
     
@@ -531,12 +750,12 @@ public class MidiEventListener extends ListenerAdapter {
             } else if (c == 'n' || c == 'N') {
                 tempAccidental = 0;
                 forceAccidental = true;
-            } else if (c == '<') {
+            } else if (c == '>') {
                 dynamic -= 16;
                 if (dynamic < 15) {
                     dynamic = 15;
                 }
-            } else if (c == '>') {
+            } else if (c == '<') {
                 dynamic += 16;
                 if (dynamic > 127) {
                     dynamic = 127;

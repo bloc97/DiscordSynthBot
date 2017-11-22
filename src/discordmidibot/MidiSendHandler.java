@@ -8,6 +8,7 @@ package discordmidibot;
 import com.sun.media.sound.AudioSynthesizer;
 import com.sun.media.sound.SoftSynthesizer;
 import java.io.IOException;
+import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -35,10 +36,10 @@ public class MidiSendHandler implements AudioSendHandler {
         this.synthesizer = synthesizer;
     }
     
-    public void play(ScorePlayer player) {
+    public void play(Queue<MidiChannelEvent> queue) {
         stop();
-        executor.submit(player);
-        currentPlayer = player;
+        currentPlayer = new ScorePlayer(synthesizer, queue);
+        executor.submit(currentPlayer);
     }
     
     public void stop() {

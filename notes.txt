@@ -88,9 +88,10 @@ a=dmsmd(dms) replace all occurences of a with this string
 Pre-track info:
 drmex //drm extended file
 BPM as integer
-_4/4_ default time signature
+:4/4: default time signature
 {epiano} default instrument
 a=(dms)
+k=depth //depth of replacement
 dmsdmsdmsdms
 dmsrfldms
 

@@ -1,0 +1,97 @@
+
+DRMFSLT (drmfslt) Plays do re mi fa sol la si
+(DMS) Plays chord, advances by longest note duration
+
+---------------------------------------------------
+
+G, g set treble clef
+B, b set bass clef
+
++ Go up a clef
+- Go down clef
+
+' Temporarily go up a clef for the next note
+, Temporarily go down a clef for the next note
+
+---------------------------------------------------
+
+# Sets the next note as Sharp
+$ Sets the next note as Flat
+n (N) Sets the next note as Natural
+
+[#DRM] Sets key signature as Sharp
+[$DRM] Sets key signature as Flat
+[DRM] Sets key signature as Natural
+
+---------------------------------------------------
+
+1, 2, 4, 1/2, 1/16, etc. Sets note duration, relative to beat time
+
+Quick characters for setting note duration
+u (U) quadruple whole note
+v (V) double whole note
+w (W) whole note
+h (H) half note
+q (Q) quarter note
+e (E) eighth note
+x (X) sixteenth note
+y (Y) thirty second note
+z (Z) sixty fourth note
+
+. Dotted note, increases length of note by (2 - 2 ^ -n)
+
+! Temporarily sets Staccato for next note
+
+---------------------------------------------------
+
+~ Silence/ go foward in time by the current note duration
+& Go back in time by the current note duration
+^ Play next note/chord without changing time
+
+:4/4: set time signature
+| Sync time with time signature
+? set bar time with current time
+
+@ Go back to beginning
+15@ Go To absolute time of 15 Beats
+
+; Go back to beginning
+15; Go to absolute time of 15 Bars
+
+---------------------------------------------------
+
+< Increase loudness
+> Decrease loudness
+% Reset loudness
+
+---------------------------------------------------
+
+{epiano} changes instrument
+
+\ blahblah \ Comment
+
+a=dmsmd(dms) replace all occurences of a with this string
+
+DRM format:
+
+!drm 120 :4/4: {piano} qRDS(DMS)
+DMSDMS
+RLF
+
+DRMEX format:
+
+drmex
+120 //BPM
+:4/4: //Default time signature
+{epiano} //Default instrument
+test=(dms) //Replacement string
+k=depth //Depth of replacement
+qRDS(DMS) //Data
+DMSDMS
+RLF
+
+
+
+
+Unused Characters: acij(k)mop
+

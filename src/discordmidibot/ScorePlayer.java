@@ -56,7 +56,7 @@ public class ScorePlayer implements Runnable {
                 MidiChannelEvent event = queue.poll();
                 
                 if (event.isChangeInstrument()) {
-                    changeInstrument(event.getChannel(), event.getInstrumentName());
+                    changeInstrument(event.getChannel(), event.getInstrumentName(), synthesizer);
                 } else if (event.isPress()) {
                     channels[event.getChannel()].noteOn(event.getNote(), event.getVelocity());
                 } else {
@@ -74,7 +74,7 @@ public class ScorePlayer implements Runnable {
         requestTermination();
     }
     
-    private void changeInstrument(int channel, String instrumentName) {
+    public static void changeInstrument(int channel, String instrumentName, Synthesizer synthesizer) {
         
         Instrument[] instruments = synthesizer.getLoadedInstruments();
 
@@ -92,6 +92,38 @@ public class ScorePlayer implements Runnable {
         }
 
         synthesizer.getChannels()[channel].programChange(closestInstrument.getPatch().getBank(), closestInstrument.getPatch().getProgram());
+    }
+    
+    public static void changeDefaultInstruments(int channels, String instrumentName, Synthesizer synthesizer) {
+        
+        Instrument[] instruments = synthesizer.getLoadedInstruments();
+
+        Instrument closestInstrument = instruments[0];
+        int closestScore = Integer.MAX_VALUE;
+        if (!instrumentName.isEmpty()) {
+            for (Instrument instrument : instruments) {
+                int thisScore = Levenshtein.subwordDistance(instrument.getName(), instrumentName);
+                if (closestScore > thisScore) {
+                    closestScore = thisScore;
+                    closestInstrument = instrument;
+                }
+            }
+        }
+        int maxChannels = Math.min(channels, synthesizer.getChannels().length);
+        for (int i=0; i<maxChannels; i++) {
+            synthesizer.getChannels()[i].programChange(closestInstrument.getPatch().getBank(), closestInstrument.getPatch().getProgram());
+        }
+        
+        
+    }
+    public static void resetDefaultInstruments(int channels, Synthesizer synthesizer) {
+        
+        int maxChannels = Math.min(channels, synthesizer.getChannels().length);
+        for (int i=0; i<maxChannels; i++) {
+            synthesizer.getChannels()[i].programChange(0, 0);
+        }
+        
+        
     }
     
 }
